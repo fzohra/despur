@@ -123,7 +123,7 @@ flags.DEFINE_integer(
 flags.DEFINE_float(
     "corr_penalty", 1e-3, "")
 flags.DEFINE_boolean("despur", False, "evaluate my code")
-
+flags.DEFINE_boolean("adapt_by_largest_loss", False, "evaluate my code")
 
 def get_data_config():
   config = {}
@@ -154,6 +154,7 @@ def get_inner_model_config():
   # spurious parameters
   config["l_splits"] = FLAGS.l_splits
   config["despur"] = FLAGS.despur
+  config["adapt_by_largest_loss"] = FLAGS.adapt_by_largest_loss
   config["corr_penalty"] = FLAGS.corr_penalty
   return config
 
@@ -257,8 +258,10 @@ def load_ifsl_config(config):
         FLAGS.normalize_ed = config.normalize_ed
     # spurious parameters
     if config.despur:
+        FLAGS.despur = config.despur
         FLAGS.l_splits = config.l_splits
         FLAGS.corr_penalty = config.corr_penalty
+        FLAGS.adapt_by_largest_loss = config.adapt_by_largest_loss
     # Overwrite default hyperparameter settings
     if hasattr(config, "outer_lr"):
         FLAGS.outer_lr = config.outer_lr

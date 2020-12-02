@@ -348,6 +348,7 @@ class LEO(snt.AbstractModule):
     self._l_splits = config["l_splits"]
     self._corr_penalty_weight = config["corr_penalty"]
     self._despur = config["despur"]
+    self._adapt_by_largest_loss = config["adapt_by_largest_loss"]
 
     self._inner_unroll_length = config["inner_unroll_length"]
     self._finetuning_unroll_length = config["finetuning_unroll_length"]
@@ -429,14 +430,49 @@ class LEO(snt.AbstractModule):
     starting_latents = latents
 
     if (self._despur):
-      starting_latents_split = tf.nn.l2_normalize(starting_latents, axis=0)
-      spurious = starting_latents_split
+      if (self._adapt_by_largest_loss):
+        starting_latents_split = self.get_split_features_full(starting_latents, "l2n")
+        input = tf.zeros([5,5])
+
+        for i in range(self._l_splits):
+          loss, theta_i = self.forward_decoder(data, starting_latents_split[i])
+          # #idea: if the loss is high when the dimensions are regularized => the input is being correlated with unwanted features (spurious correlations)
+          if (i==0):
+              prev_loss_max = loss
+
+          mask = tf.greater(loss, prev_loss_max)
+          mask = tf.squeeze(mask)
+          input = tf.where(mask, tf.fill([5,5], i), tf.cast(input, tf.int32))
+          prev_loss_max = tf.math.maximum(prev_loss_max, loss)
+
+        split_by_class = []
+        starting_latents_split_t = tf.convert_to_tensor(starting_latents_split)
+        for i in range(5): #i for class
+            datum = tf.gather(starting_latents_split_t, input[i][0]) #change to max later
+            datum_class = tf.gather(datum, i)  #max loss datum, class
+            split_by_class.append(datum_class)
+        for i in range(1, 5): #i for class
+          if (i==1):
+            spurious = tf.concat([tf.expand_dims(split_by_class[0], 0), tf.expand_dims(split_by_class[1], 0)], 0)
+          else:
+            spurious = tf.concat([spurious, tf.expand_dims(split_by_class[i], 0)], 0)
+      else:
+        starting_latents_split = tf.nn.l2_normalize(starting_latents, axis=0)
+        spurious = starting_latents_split
+
 
     loss, _ = self.forward_decoder(data, latents)
     for _ in range(self._inner_unroll_length):
       if (self._despur):
-        corr_penalty = tf.nn.l2_loss((latents - spurious))
-        loss += self._corr_penalty_weight * corr_penalty
+        if (self._adapt_by_largest_loss):
+          corr_penalty = tf.losses.mean_squared_error(
+            labels=tf.stop_gradient(latents), predictions=spurious)
+          corr_penalty = tf.cast(corr_penalty, self._float_dtype)
+          loss += self._corr_penalty_weight * corr_penalty
+        else:
+          corr_penalty = tf.nn.l2_loss((latents - spurious))
+          loss += self._corr_penalty_weight * corr_penalty
+
       loss_grad = tf.gradients(loss, latents)  # dLtrain/dz
       latents -= inner_lr * loss_grad[0]
       loss, classifier_weights = self.forward_decoder(data, latents)
@@ -673,3 +709,24 @@ class LEO(snt.AbstractModule):
   @property
   def _decoder_orthogonality_reg(self):
     return self._orthogonality_reg
+
+  def get_split_features_full(self, data, method="none"):
+    split_dim = int(64 / self._l_splits)
+    split_data = []
+    for i in range(self._l_splits):
+      start_idx = split_dim * i
+      end_idx = split_dim * i + split_dim
+      data_i = data[:, :, start_idx:end_idx]
+      data_t = tf.nn.l2_normalize(data_i, axis=0)
+
+      start_stack = 0
+      end_stack = start_idx
+      data_before = data[:, :, start_stack:end_stack]
+
+      start_stack_after = end_idx
+      end_stack_after = 64
+      data_after = data[:, :, start_stack_after:end_stack_after]
+
+      full = tf.concat([data_before, data_t, data_after], -1)
+      split_data.append(full)
+    return split_data

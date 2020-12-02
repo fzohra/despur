@@ -6,28 +6,56 @@ def mini_5_resnet_latents_split_8_0():
     config = mini_5_resnet_baseline_reg()
     config.despur = True
     config.l_splits = 8
-    config.corr_penalty = 1.0
+    config.corr_penalty = 0.001
+    config.adapt_by_largest_loss = True
     return config
 
 def mini_5_resnet_latents_split_8_1():
     config = mini_5_resnet_baseline_reg()
     config.despur = True
-    config.l_splits = 8
-    config.corr_penalty = 0.1
+    config.l_splits = 6
+    config.corr_penalty = 0.001
+    config.adapt_by_largest_loss = True
     return config
 
 def mini_5_resnet_latents_split_8_2():
     config = mini_5_resnet_baseline_reg()
     config.despur = True
-    config.l_splits = 8
-    config.corr_penalty = 0.01
+    config.l_splits = 4
+    config.corr_penalty = 0.001
+    config.adapt_by_largest_loss = True
     return config
 
 def mini_5_resnet_latents_split_8_3():
     config = mini_5_resnet_baseline_reg()
     config.despur = True
-    config.l_splits = 8
+    config.l_splits = 2
     config.corr_penalty = 0.001
+    config.adapt_by_largest_loss = True
+    return config
+
+def mini_5_resnet_latents_split_8_4():
+    config = mini_5_resnet_baseline_reg()
+    config.despur = True
+    config.l_splits = 1
+    config.corr_penalty = 0.001
+    config.adapt_by_largest_loss = False
+    return config
+
+def mini_5_resnet_latents_split_8_5():
+    config = mini_5_resnet_baseline_reg()
+    config.despur = True
+    config.l_splits = 4
+    config.corr_penalty = 0.0001
+    config.adapt_by_largest_loss = True
+    return config
+
+def mini_5_resnet_latents_split_8_6():
+    config = mini_5_resnet_baseline_reg()
+    config.despur = True
+    config.l_splits = 4
+    config.corr_penalty = 1.0
+    config.adapt_by_largest_loss = True
     return config
 
 def mini_5_resnet_baseline_reg():
@@ -39,7 +67,7 @@ def mini_5_resnet_baseline_reg():
     config.method = "simpleshot"
     config.model = "ResNet10"
     config.deconfound = False
-    config.meta_label = "baseline"
+    config.meta_label = "despur"
     return config
 
 def mini_1_resnet_baseline_reg():
@@ -51,5 +79,5 @@ def mini_1_resnet_baseline_reg():
     config.method = "simpleshot"
     config.model = "ResNet10"
     config.deconfound = False
-    config.meta_label = "baseline"
+    config.meta_label = "despur"
     return config
