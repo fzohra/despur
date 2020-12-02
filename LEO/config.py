@@ -124,6 +124,8 @@ flags.DEFINE_float(
     "corr_penalty", 1e-3, "")
 flags.DEFINE_boolean("despur", False, "evaluate my code")
 flags.DEFINE_boolean("adapt_by_largest_loss", False, "evaluate my code")
+flags.DEFINE_boolean("regularize_mse", False, "evaluate my code")
+flags.DEFINE_boolean("regularize_kl", False, "evaluate my code")
 
 def get_data_config():
   config = {}
@@ -156,6 +158,9 @@ def get_inner_model_config():
   config["despur"] = FLAGS.despur
   config["adapt_by_largest_loss"] = FLAGS.adapt_by_largest_loss
   config["corr_penalty"] = FLAGS.corr_penalty
+  config["regularize_mse"] = FLAGS.regularize_mse
+  config["regularize_kl"] = FLAGS.regularize_kl
+
   return config
 
 
@@ -262,6 +267,9 @@ def load_ifsl_config(config):
         FLAGS.l_splits = config.l_splits
         FLAGS.corr_penalty = config.corr_penalty
         FLAGS.adapt_by_largest_loss = config.adapt_by_largest_loss
+        FLAGS.regularize_mse = config.regularize_mse
+        FLAGS.regularize_kl = config.regularize_kl
+
     # Overwrite default hyperparameter settings
     if hasattr(config, "outer_lr"):
         FLAGS.outer_lr = config.outer_lr

@@ -349,6 +349,8 @@ class LEO(snt.AbstractModule):
     self._corr_penalty_weight = config["corr_penalty"]
     self._despur = config["despur"]
     self._adapt_by_largest_loss = config["adapt_by_largest_loss"]
+    self._regularize_mse = config["regularize_mse"]
+    self._regularize_kl = config["regularize_kl"]
 
     self._inner_unroll_length = config["inner_unroll_length"]
     self._finetuning_unroll_length = config["finetuning_unroll_length"]
@@ -465,9 +467,13 @@ class LEO(snt.AbstractModule):
     for _ in range(self._inner_unroll_length):
       if (self._despur):
         if (self._adapt_by_largest_loss):
-          corr_penalty = tf.losses.mean_squared_error(
-            labels=tf.stop_gradient(latents), predictions=spurious)
-          corr_penalty = tf.cast(corr_penalty, self._float_dtype)
+          if (self._regularize_mse):
+            corr_penalty = tf.losses.mean_squared_error(
+              labels=latents, predictions=spurious)
+            corr_penalty = tf.cast(corr_penalty, self._float_dtype)
+          else:
+            corr_penalty = tf.nn.l2_loss((latents - spurious))
+          # corr_loss = tf.reduce_sum(tf.reduce_mean(tfp.stats.correlation(latents, spurious, sample_axis=2, event_axis=None), 1))
           loss += self._corr_penalty_weight * corr_penalty
         else:
           corr_penalty = tf.nn.l2_loss((latents - spurious))
@@ -613,6 +619,18 @@ class LEO(snt.AbstractModule):
     kl = tf.reduce_mean(
         normal_distribution.log_prob(samples) - random_prior.log_prob(samples))
     return kl
+
+  # def kl_divergence_given_latents(self, distribution_params, adapted_latents, stddev_offset=0.):
+  #   means, unnormalized_stddev = tf.split(distribution_params, 2, axis=-1)
+  #   stddev = tf.exp(unnormalized_stddev)
+  #   stddev -= (1. - stddev_offset)
+  #   stddev = tf.maximum(stddev, 1e-10)
+  #   distribution = tfp.distributions.Normal(loc=means, scale=stddev)
+  #   if not self.is_meta_training:
+  #     return tf.constant(0., dtype=self._float_dtype)
+  #
+  #   kl = self.kl_divergence(adapted_latents, distribution)
+  #   return kl
 
   def predict(self, inputs, weights):
     after_dropout = tf.nn.dropout(inputs, rate=self.dropout_rate)
