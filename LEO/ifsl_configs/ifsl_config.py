@@ -13,7 +13,7 @@ def mini_5_resnet_ifsl():
     config.deconfound = True
     config.meta_label = "ifsl"
     # IFSL parameters
-    config.n_splits = 8
+    config.n_splits = 16 #1
     config.fusion = "+"
     config.classifier = "single"
     config.num_classes = 64
@@ -39,7 +39,7 @@ def mini_1_resnet_ifsl():
     config.deconfound = True
     config.meta_label = "ifsl"
     # IFSL parameters
-    config.n_splits = 8
+    config.n_splits = 16 #1
     config.fusion = "+"
     config.classifier = "single"
     config.num_classes = 64

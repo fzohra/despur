@@ -37,7 +37,7 @@ import utils
 import numpy as np
 
 FLAGS = flags.FLAGS
-flags.DEFINE_string("checkpoint_path", "/data2/yuezhongqi/Model/leo/ifsl/miniresnet5baselinewoaug", "Path to restore from and "
+flags.DEFINE_string("checkpoint_path", None, "Path to restore from and "
                     "save to checkpoints.")
 flags.DEFINE_integer(
     "checkpoint_steps", 1000, "The frequency, in number of "

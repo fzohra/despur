@@ -2,7 +2,6 @@ class Config():
     def __init__(self):
         self.is_config = True
 
-
 def mini_5_resnet_baseline():
     config = Config()
     config.shot = 5

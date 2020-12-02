@@ -118,6 +118,13 @@ flags.DEFINE_boolean("hacc", False, "Turn on saving hacc for evaluation")
 flags.DEFINE_boolean("cross", False, "Evaluating on cross")
 
 
+flags.DEFINE_integer(
+    "l_splits", 8, "Number of splits of the latent vector")
+flags.DEFINE_float(
+    "corr_penalty", 1e-3, "")
+flags.DEFINE_boolean("despur", False, "evaluate my code")
+
+
 def get_data_config():
   config = {}
   config["data_path"] = FLAGS.data_path
@@ -143,6 +150,11 @@ def get_inner_model_config():
   config["orthogonality_penalty_weight"] = FLAGS.orthogonality_penalty_weight
   config["feat_dim"] = FLAGS.feat_dim
   config["pretrain_mean_filename"] = FLAGS.pretrain_mean_filename
+
+  # spurious parameters
+  config["l_splits"] = FLAGS.l_splits
+  config["despur"] = FLAGS.despur
+  config["corr_penalty"] = FLAGS.corr_penalty
   return config
 
 
@@ -171,14 +183,15 @@ def load_ifsl_config(config):
         FLAGS.dataset_name = "tieredImageNet"
         FLAGS.num_pretrain_classes = 351
     # checkpoint path
-    FLAGS.checkpoint_path = "/data2/yuezhongqi/Model/leo/ifsl/" + config.dataset + "_" + config.model + "_" + \
-                            str(config.shot) + "_" + config.meta_label
+    FLAGS.checkpoint_path = "/Users/zohra/PycharmProjects/leo/logs/" + config.dataset + "_" + config.model + "_" + \
+                            str(config.shot) + "_" + config.meta_label \
+                            + "_" + str(config.l_splits) + "_" + str(config.corr_penalty)
     # data path
     if config.model == "ResNet10":
         model_abbr = "resnet"
     elif config.model == "wideres":
         model_abbr = "wrn"
-    FLAGS.data_path = "/data2/yuezhongqi/Model/leo/" + model_abbr + "_noaug_embeddings"
+    FLAGS.data_path = "/Users/zohra/PycharmProjects/ifsl/ifsl/LEO/data/" + model_abbr + "_noaug_embeddings"
     # pretrain mean filename
     FLAGS.pretrain_mean_filename = config.dataset + "_" + config.method + "_" + config.model + "_mean.npy"
     # shot
@@ -242,6 +255,10 @@ def load_ifsl_config(config):
         FLAGS.normalize_before_center = config.normalize_before_center
         FLAGS.normalize_d = config.normalize_d
         FLAGS.normalize_ed = config.normalize_ed
+    # spurious parameters
+    if config.despur:
+        FLAGS.l_splits = config.l_splits
+        FLAGS.corr_penalty = config.corr_penalty
     # Overwrite default hyperparameter settings
     if hasattr(config, "outer_lr"):
         FLAGS.outer_lr = config.outer_lr

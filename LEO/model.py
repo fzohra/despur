@@ -345,6 +345,10 @@ class LEO(snt.AbstractModule):
     self._float_dtype = tf.float64 if use_64bits_dtype else tf.float32
     self._int_dtype = tf.int64 if use_64bits_dtype else tf.int32
 
+    self._l_splits = config["l_splits"]
+    self._corr_penalty_weight = config["corr_penalty"]
+    self._despur = config["despur"]
+
     self._inner_unroll_length = config["inner_unroll_length"]
     self._finetuning_unroll_length = config["finetuning_unroll_length"]
     self._inner_lr_init = config["inner_lr_init"]
@@ -423,8 +427,16 @@ class LEO(snt.AbstractModule):
           dtype=self._float_dtype,
           initializer=tf.constant_initializer(self._inner_lr_init))
     starting_latents = latents
+
+    if (self._despur):
+      starting_latents_split = tf.nn.l2_normalize(starting_latents, axis=0)
+      spurious = starting_latents_split
+
     loss, _ = self.forward_decoder(data, latents)
     for _ in range(self._inner_unroll_length):
+      if (self._despur):
+        corr_penalty = tf.nn.l2_loss((latents - spurious))
+        loss += self._corr_penalty_weight * corr_penalty
       loss_grad = tf.gradients(loss, latents)  # dLtrain/dz
       latents -= inner_lr * loss_grad[0]
       loss, classifier_weights = self.forward_decoder(data, latents)
