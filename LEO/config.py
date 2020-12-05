@@ -127,6 +127,10 @@ flags.DEFINE_boolean("adapt_by_largest_loss", False, "evaluate my code")
 flags.DEFINE_boolean("regularize_mse", False, "evaluate my code")
 flags.DEFINE_boolean("regularize_kl", False, "evaluate my code")
 flags.DEFINE_boolean("zero_adjust", False, "evaluate my code")
+flags.DEFINE_integer("informative_features", 0, "evaluate my code")
+flags.DEFINE_boolean("informative_features_with_thresholding", False, "evaluate my code")
+flags.DEFINE_boolean("latent_features", False, "evaluate my code")
+flags.DEFINE_float("latents_threshold", None, "evaluate my code")
 
 def get_data_config():
   config = {}
@@ -162,6 +166,10 @@ def get_inner_model_config():
   config["regularize_mse"] = FLAGS.regularize_mse
   config["regularize_kl"] = FLAGS.regularize_kl
   config["zero_adjust"] = FLAGS.zero_adjust
+  config["informative_features"] = FLAGS.informative_features
+  config["informative_features_with_thresholding"] = FLAGS.informative_features_with_thresholding
+  config["latent_features"] = FLAGS.latent_features
+  config["latents_threshold"] = FLAGS.latents_threshold
 
   return config
 
@@ -179,6 +187,8 @@ def get_outer_model_config():
   config["outer_lr"] = FLAGS.outer_lr
   config["gradient_threshold"] = FLAGS.gradient_threshold
   config["gradient_norm_threshold"] = FLAGS.gradient_norm_threshold
+  config["informative_features"] = FLAGS.informative_features
+  config["informative_features_with_thresholding"] = FLAGS.informative_features_with_thresholding
   return config
 
 
@@ -272,6 +282,11 @@ def load_ifsl_config(config):
         FLAGS.regularize_mse = config.regularize_mse
         FLAGS.regularize_kl = config.regularize_kl
         FLAGS.zero_adjust = config.zero_adjust
+    FLAGS.informative_features = config.informative_features
+    FLAGS.informative_features_with_thresholding = config.informative_features_with_thresholding
+    FLAGS.latent_features = config.latent_features
+    FLAGS.latents_threshold = config.latents_threshold
+
 
     # Overwrite default hyperparameter settings
     if hasattr(config, "outer_lr"):

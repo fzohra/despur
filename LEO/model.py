@@ -74,7 +74,7 @@ def run_leo(model, inputs, is_meta_training):
 class FeatureProcessor():
   def __init__(self, n_splits, pretrain_mean_filename, feat_dim, is_cosine_feature=False, num_classes=64,
                preprocess_after_split="none", preprocess_before_split="none", normalize_before_center=False,
-               normalize_d=False, normalize_ed=False):
+               normalize_d=False, normalize_ed=False, informative_features=0, informative_features_with_thresholding=False):
     self.feat_dim = feat_dim
     self.n_splits = n_splits
     self.num_classes = num_classes
@@ -93,9 +93,27 @@ class FeatureProcessor():
       self.pretrain_features = tf.nn.l2_normalize(self.pretrain_features, axis=-1)
     self.pretrain_features_mean = tf.reduce_mean(self.pretrain_features, axis=0)
 
+    self._informative_features_with_thresholding = informative_features_with_thresholding
+    self._informative_features = informative_features
+
   def get_d_features(self, logit):
     prob = tf.nn.softmax(logit, axis=-1)  # 5 * N * 64
     d = tf.tensordot(prob, self.pretrain_features, axes=[[-1],[0]])
+    return d
+
+  def get_k_d_features(self, logit, k):
+    prob = tf.nn.softmax(logit, axis=-1)  # 5 * N * 64
+    # pretrained_k = tf.reduce_sum(tf.gather(self.pretrain_features, tf.nn.top_k(prob, k=3)[1]), 2)
+
+    index_top = tf.nn.top_k(prob, k=1)[1]
+    index_top_k = tf.nn.top_k(prob, k=k)[1]
+    mean_summed = tf.reduce_sum(tf.gather(self.pretrain_features, index_top_k), 2)
+    pretrained_informative = tf.tensor_scatter_nd_update(self.pretrain_features, index_top, mean_summed)
+    if (self._informative_features_with_thresholding):
+      pretrained_informative = tf.where(tf.greater(pretrained_informative, self.pretrain_features), pretrained_informative,  self.pretrain_features)
+
+    d = tf.tensordot(prob, pretrained_informative, axes=[[-1],[0]])
+
     return d
 
   def preprocess(self, data, center=None, method="none"):
@@ -127,12 +145,20 @@ class FeatureProcessor():
       split_data.append(data_i)
     return split_data
 
+  def get_features_z(self, latents):
+    split_support_d = self.get_split_features(latents, None, "l2n")
+    return split_support_d
+
   def get_features(self, data):
     # data = tf.identity(data)
     support_x = data[0]
     query_x = data[3]
-    support_d = self.get_d_features(data[6])
-    query_d = self.get_d_features(data[7])
+    if (self._informative_features != 0):
+      support_d = self.get_k_d_features(data[6], self._informative_features)
+      query_d = self.get_k_d_features(data[7], self._informative_features)
+    else:
+      support_d = self.get_d_features(data[6])
+      query_d = self.get_d_features(data[7])
     if self.normalize_ed:
       support_d = tf.nn.l2_normalize(support_d, axis=-1)
       query_d = tf.nn.l2_normalize(query_d, axis=-1)
@@ -165,12 +191,16 @@ class IFSL(snt.AbstractModule):
                normalize_before_center=True, normalize_d=False, normalize_ed=False):
     super(IFSL, self).__init__(name="IFSL")
     self.n_splits = n_splits
-    
+
+    self._informative_features = config["informative_features"]
+    self._informative_features_with_thresholding = config["informative_features_with_thresholding"]
+
     self.feat_dim = config["feat_dim"]
     self._int_dtype = tf.int64 if use_64bits_dtype else tf.int32
     self.feature_processor = FeatureProcessor(n_splits, config["pretrain_mean_filename"], self.feat_dim,
                                               is_cosine_feature, num_classes, preprocess_after_split,
-                                              preprocess_before_split, normalize_before_center, normalize_d, normalize_ed)
+                                              preprocess_before_split, normalize_before_center, normalize_d, normalize_ed,
+                                              self._informative_features, self._informative_features_with_thresholding)
     self.n_splits = n_splits
     self.num_classes = num_classes
     self.fusion = fusion
@@ -356,6 +386,10 @@ class LEO(snt.AbstractModule):
     self._regularize_mse = config["regularize_mse"]
     self._regularize_kl = config["regularize_kl"]
     self._zero_adjust = config["zero_adjust"]
+    self._informative_features = config["informative_features"]
+    self._informative_features_with_thresholding = config["informative_features_with_thresholding"]
+    self._latent_features = config["latent_features"]
+    self._latents_threshold = config["latents_threshold"]
 
     self._inner_unroll_length = config["inner_unroll_length"]
     self._finetuning_unroll_length = config["finetuning_unroll_length"]
@@ -435,6 +469,12 @@ class LEO(snt.AbstractModule):
           dtype=self._float_dtype,
           initializer=tf.constant_initializer(self._inner_lr_init))
     starting_latents = latents
+
+    if (self._latent_features):
+      if (self._latents_threshold is not None):
+        latents = self.get_features_z(starting_latents, None, "threshold", self._latents_threshold)
+      else:
+        latents = self.get_features_z(starting_latents, None, "l2n")
 
     if (self._despur):
       if (self._adapt_by_largest_loss):
@@ -760,3 +800,37 @@ class LEO(snt.AbstractModule):
       full = tf.concat([data_before, data_t, data_after], -1)
       split_data.append(full)
     return split_data
+
+  def get_features_z(self, data, center=None, method="none", threshold=0.):
+    split_dim = int(64 / self._l_splits)
+    split_data = []
+    adjusted= None
+    for i in range(self._l_splits):
+      start_idx = split_dim * i
+      end_idx = split_dim * i + split_dim
+      data_i = data[:, :, start_idx:end_idx]
+      if center is not None:
+        center_i = center[:, :, start_idx:end_idx]
+      else:
+        center_i = None
+      # data_i = tf.nn.l2_normalize(data_i, axis=-1)
+      data_i = self.preprocess(data_i, center_i, method, threshold)
+      split_data.append(data_i)
+      if adjusted is None:
+        adjusted = data_i
+      else:
+        adjusted = tf.concat([adjusted, data_i], 2)
+
+    return adjusted
+
+  def preprocess(self, data, center=None, method="none", threshold=0.):
+    if method == "none":
+      return data
+    elif method == "threshold":
+          return tf.where(tf.greater(data, threshold), data, tf.fill(tf.shape(data), threshold))
+    elif method == "l2n":
+      return tf.nn.l2_normalize(data, axis=-1)
+    elif method == "cl2n":
+      if self.normalize_before_center:
+        data = tf.nn.l2_normalize(data, axis=-1)
+      return tf.nn.l2_normalize(data - center, axis=-1)

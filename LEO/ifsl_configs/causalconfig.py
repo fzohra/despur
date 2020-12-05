@@ -10,67 +10,58 @@ def mini_5_resnet_latents_causal_0():
 
 def mini_5_resnet_latents_causal_1():
     config = mini_5_resnet_ifsl_causal()
-    config.despur = True
+    config.preprocess_before_split = "hl2n"
+    config.preprocess_after_split = "l2n"
+    config.informative_features = 3
+    return config
+
+def mini_5_resnet_latents_causal_2():
+    config = mini_5_resnet_ifsl_causal()
+    config.preprocess_before_split = "hl2n"
+    config.preprocess_after_split = "l2n"
+    config.informative_features = 2
+    return config
+
+def mini_5_resnet_latents_causal_3():
+    config = mini_5_resnet_ifsl_causal()
+    config.preprocess_before_split = "cl2n"
+    config.preprocess_after_split = "l2n"
+    config.informative_features = 3
+    config.informative_features_with_thresholding = True
+    config.fusion ="concat"
+    return config
+
+def mini_5_resnet_latents_causal_4():
+    config = mini_5_resnet_ifsl_causal()
+    config.preprocess_before_split = "cl2n"
+    config.preprocess_after_split = "l2n"
+    config.informative_features = 3
+    config.informative_features_with_thresholding = True
+    return config
+
+def mini_5_resnet_latents_causal_5():
+    config = mini_5_resnet_ifsl_causal()
     config.l_splits = 4
     config.corr_penalty = 0.001
-    config.adapt_by_largest_loss = True
-    config.regularize_mse = True
-    config.regularize_kl = False
+
+    config.preprocess_before_split = "cl2n"
+    config.preprocess_after_split = "l2n"
+    config.latent_features = True
+
     return config
 
-def mini_5_resnet_latents_split_8_2():
-    # best
+def mini_5_resnet_latents_causal_6():
     config = mini_5_resnet_ifsl_causal()
-    config.despur = True
-    config.l_splits = 2
-    config.corr_penalty = 0.001
-    config.adapt_by_largest_loss = True
-    config.regularize_mse = True
-    config.regularize_kl = False
-    config.zero_adjust = True
-    return config
-
-def mini_5_resnet_latents_split_8_3():
-    config = mini_5_resnet_ifsl_causal()
-    config.despur = True
-    config.l_splits = 1
-    config.corr_penalty = 0.001
-    config.adapt_by_largest_loss = True
-    config.regularize_mse = True
-    config.regularize_kl = False
-    return config
-
-def mini_5_resnet_latents_split_8_4():
-    config = mini_5_resnet_ifsl_causal()
-    config.despur = True
-    config.l_splits = 1
-    config.corr_penalty = 0.001
-    config.adapt_by_largest_loss = True
-    config.regularize_mse = False
-    config.regularize_kl = False
-    return config
-
-def mini_5_resnet_latents_split_8_5():
-    config = mini_5_resnet_ifsl_causal()
-    config.despur = True
-    config.l_splits = 2
-    config.corr_penalty = 0.001
-    config.adapt_by_largest_loss = True
-    config.regularize_mse = False
-    config.regularize_kl = False
-    return config
-
-def mini_5_resnet_latents_split_8_6():
-    config = mini_5_resnet_ifsl_causal()
-    config.despur = True
     config.l_splits = 4
     config.corr_penalty = 0.001
-    config.adapt_by_largest_loss = True
-    config.regularize_mse = False
-    config.regularize_kl = False
+
+    config.preprocess_before_split = "cl2n"
+    config.preprocess_after_split = "l2n"
+    config.latent_features = True
+    config.latents_threshold = 1e-3
     return config
 
-def mini_5_resnet_latents_split_8_7():
+def mini_5_resnet_latents_causal_7():
     config = mini_5_resnet_ifsl_causal()
     config.despur = True
     config.l_splits = 8
@@ -80,7 +71,7 @@ def mini_5_resnet_latents_split_8_7():
     config.regularize_kl = False
     return config
 
-def mini_5_resnet_latents_split_8_8():
+def mini_5_resnet_latents_causal_8():
     config = mini_5_resnet_ifsl_causal()
     config.despur = True
     config.l_splits = 2
@@ -90,7 +81,7 @@ def mini_5_resnet_latents_split_8_8():
     config.regularize_kl = False
     return config
 
-def mini_5_resnet_latents_split_8_9():
+def mini_5_resnet_latents_causal_9():
     config = mini_5_resnet_ifsl_causal()
     config.despur = True
     config.l_splits = 2
@@ -126,11 +117,15 @@ def mini_5_resnet_ifsl_causal():
     # config.outer_lr = 1.51024e-4
 
     config.despur = False
-    config.l_splits = 8
+    config.l_splits = 5
     config.corr_penalty = 0.001
     config.adapt_by_largest_loss = False
     config.regularize_mse = False
     config.regularize_kl = False
+    config.informative_features = 0
+    config.informative_features_with_thresholding = False
+    config.latent_features = False
+    config.latents_threshold = None
     return config
 
 def mini_1_resnet_baseline_reg():
