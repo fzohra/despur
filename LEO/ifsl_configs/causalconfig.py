@@ -6,6 +6,7 @@ def mini_5_resnet_latents_causal_0():
     config = mini_5_resnet_ifsl_causal()
     config.preprocess_before_split = "hl2n"
     config.preprocess_after_split = "l2n"
+    config.key = "A"
     return config
 
 def mini_5_resnet_latents_causal_1():
@@ -13,6 +14,7 @@ def mini_5_resnet_latents_causal_1():
     config.preprocess_before_split = "hl2n"
     config.preprocess_after_split = "l2n"
     config.informative_features = 3
+    config.key = "B"
     return config
 
 def mini_5_resnet_latents_causal_2():
@@ -20,6 +22,7 @@ def mini_5_resnet_latents_causal_2():
     config.preprocess_before_split = "hl2n"
     config.preprocess_after_split = "l2n"
     config.informative_features = 2
+    config.key = "C"
     return config
 
 def mini_5_resnet_latents_causal_3():
@@ -29,6 +32,8 @@ def mini_5_resnet_latents_causal_3():
     config.informative_features = 3
     config.informative_features_with_thresholding = True
     config.fusion ="concat"
+    config.key = "D"
+
     return config
 
 def mini_5_resnet_latents_causal_4():
@@ -37,6 +42,8 @@ def mini_5_resnet_latents_causal_4():
     config.preprocess_after_split = "l2n"
     config.informative_features = 3
     config.informative_features_with_thresholding = True
+    config.key = "E"
+
     return config
 
 def mini_5_resnet_latents_causal_5():
@@ -47,6 +54,7 @@ def mini_5_resnet_latents_causal_5():
     config.preprocess_before_split = "cl2n"
     config.preprocess_after_split = "l2n"
     config.latent_features = True
+    config.key = "F"
 
     return config
 
@@ -59,6 +67,8 @@ def mini_5_resnet_latents_causal_6():
     config.preprocess_after_split = "l2n"
     config.latent_features = True
     config.latents_threshold = 1e-3
+    config.key = "G"
+
     return config
 
 def mini_5_resnet_latents_causal_7():
@@ -69,6 +79,8 @@ def mini_5_resnet_latents_causal_7():
     config.adapt_by_largest_loss = True
     config.regularize_mse = False
     config.regularize_kl = False
+    config.key = "H"
+
     return config
 
 def mini_5_resnet_latents_causal_8():
@@ -79,6 +91,8 @@ def mini_5_resnet_latents_causal_8():
     config.adapt_by_largest_loss = True
     config.regularize_mse = True
     config.regularize_kl = False
+    config.key = "I"
+
     return config
 
 def mini_5_resnet_latents_causal_9():
@@ -89,6 +103,8 @@ def mini_5_resnet_latents_causal_9():
     config.adapt_by_largest_loss = True
     config.regularize_mse = True
     config.regularize_kl = False
+    config.key = "J"
+
     return config
 
 def mini_5_resnet_ifsl_causal():
