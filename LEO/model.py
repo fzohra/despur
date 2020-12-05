@@ -101,6 +101,10 @@ class FeatureProcessor():
   def preprocess(self, data, center=None, method="none"):
     if method == "none":
       return data
+    elif method == "hl2n":
+          regularized = tf.nn.l2_normalize(data - center, axis=-1)
+          thresholded = tf.where(tf.greater(data, center), data, regularized)
+          return thresholded
     elif method == "l2n":
       return tf.nn.l2_normalize(data, axis=-1)
     elif method == "cl2n":
@@ -351,6 +355,7 @@ class LEO(snt.AbstractModule):
     self._adapt_by_largest_loss = config["adapt_by_largest_loss"]
     self._regularize_mse = config["regularize_mse"]
     self._regularize_kl = config["regularize_kl"]
+    self._zero_adjust = config["zero_adjust"]
 
     self._inner_unroll_length = config["inner_unroll_length"]
     self._finetuning_unroll_length = config["finetuning_unroll_length"]
@@ -438,7 +443,7 @@ class LEO(snt.AbstractModule):
 
         for i in range(self._l_splits):
           loss, theta_i = self.forward_decoder(data, starting_latents_split[i])
-          # #idea: if the loss is high when the dimensions are regularized => the input is being correlated with unwanted features (spurious correlations)
+          # idea: if the loss is high when the dimensions are regularized => the input is being correlated with unwanted features (spurious correlations)
           if (i==0):
               prev_loss_max = loss
 
@@ -462,6 +467,8 @@ class LEO(snt.AbstractModule):
         starting_latents_split = tf.nn.l2_normalize(starting_latents, axis=0)
         spurious = starting_latents_split
 
+    # if (self._adapt_by_largest_loss):
+    #   latents = tf.nn.l2_normalize((latents - spurious), axis=0)
 
     loss, _ = self.forward_decoder(data, latents)
     for _ in range(self._inner_unroll_length):
@@ -473,7 +480,6 @@ class LEO(snt.AbstractModule):
             corr_penalty = tf.cast(corr_penalty, self._float_dtype)
           else:
             corr_penalty = tf.nn.l2_loss((latents - spurious))
-          # corr_loss = tf.reduce_sum(tf.reduce_mean(tfp.stats.correlation(latents, spurious, sample_axis=2, event_axis=None), 1))
           loss += self._corr_penalty_weight * corr_penalty
         else:
           corr_penalty = tf.nn.l2_loss((latents - spurious))
@@ -482,6 +488,9 @@ class LEO(snt.AbstractModule):
       loss_grad = tf.gradients(loss, latents)  # dLtrain/dz
       latents -= inner_lr * loss_grad[0]
       loss, classifier_weights = self.forward_decoder(data, latents)
+
+      # if (self._adapt_by_largest_loss):
+      #   latents = tf.nn.l2_normalize((latents-spurious), axis=0)
 
     if self.is_meta_training:
       encoder_penalty = tf.losses.mean_squared_error(
@@ -735,7 +744,10 @@ class LEO(snt.AbstractModule):
       start_idx = split_dim * i
       end_idx = split_dim * i + split_dim
       data_i = data[:, :, start_idx:end_idx]
-      data_t = tf.nn.l2_normalize(data_i, axis=0)
+      if (self._zero_adjust):
+        data_t = tf.zeros_like(data_i)
+      else:
+        data_t = tf.nn.l2_normalize(data_i, axis=0)
 
       start_stack = 0
       end_stack = start_idx

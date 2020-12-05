@@ -13,7 +13,7 @@ def mini_5_resnet_ifsl():
     config.deconfound = True
     config.meta_label = "ifsl"
     # IFSL parameters
-    config.n_splits = 16 #1
+    config.n_splits = 8 #1
     config.fusion = "+"
     config.classifier = "single"
     config.num_classes = 64
@@ -26,6 +26,13 @@ def mini_5_resnet_ifsl():
     config.normalize_d = False
     config.normalize_ed = False
     # config.outer_lr = 1.51024e-4
+
+    config.despur = False
+    config.l_splits = 8
+    config.corr_penalty = 0.001
+    config.adapt_by_largest_loss = False
+    config.regularize_mse = False
+    config.regularize_kl = False
     return config
 
 def mini_1_resnet_ifsl():
@@ -39,7 +46,7 @@ def mini_1_resnet_ifsl():
     config.deconfound = True
     config.meta_label = "ifsl"
     # IFSL parameters
-    config.n_splits = 16 #1
+    config.n_splits = 8 #1
     config.fusion = "+"
     config.classifier = "single"
     config.num_classes = 64

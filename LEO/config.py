@@ -126,6 +126,7 @@ flags.DEFINE_boolean("despur", False, "evaluate my code")
 flags.DEFINE_boolean("adapt_by_largest_loss", False, "evaluate my code")
 flags.DEFINE_boolean("regularize_mse", False, "evaluate my code")
 flags.DEFINE_boolean("regularize_kl", False, "evaluate my code")
+flags.DEFINE_boolean("zero_adjust", False, "evaluate my code")
 
 def get_data_config():
   config = {}
@@ -160,6 +161,7 @@ def get_inner_model_config():
   config["corr_penalty"] = FLAGS.corr_penalty
   config["regularize_mse"] = FLAGS.regularize_mse
   config["regularize_kl"] = FLAGS.regularize_kl
+  config["zero_adjust"] = FLAGS.zero_adjust
 
   return config
 
@@ -191,7 +193,7 @@ def load_ifsl_config(config):
     # checkpoint path
     FLAGS.checkpoint_path = "/Users/zohra/PycharmProjects/leo/logs/" + config.dataset + "_" + config.model + "_" + \
                             str(config.shot) + "_" + config.meta_label \
-                            + "_" + str(config.l_splits) + "_" + str(config.corr_penalty)
+                            + "_" + str(config.l_splits) + "_" + str(config.corr_penalty) + "-E"
     # data path
     if config.model == "ResNet10":
         model_abbr = "resnet"
@@ -269,6 +271,7 @@ def load_ifsl_config(config):
         FLAGS.adapt_by_largest_loss = config.adapt_by_largest_loss
         FLAGS.regularize_mse = config.regularize_mse
         FLAGS.regularize_kl = config.regularize_kl
+        FLAGS.zero_adjust = config.zero_adjust
 
     # Overwrite default hyperparameter settings
     if hasattr(config, "outer_lr"):
