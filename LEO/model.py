@@ -105,14 +105,15 @@ class FeatureProcessor():
     prob = tf.nn.softmax(logit, axis=-1)  # 5 * N * 64
     # pretrained_k = tf.reduce_sum(tf.gather(self.pretrain_features, tf.nn.top_k(prob, k=3)[1]), 2)
 
-    index_top = tf.nn.top_k(prob, k=1)[1]
-    index_top_k = tf.nn.top_k(prob, k=k)[1]
-    mean_summed = tf.reduce_sum(tf.gather(self.pretrain_features, index_top_k), 2)
-    pretrained_informative = tf.tensor_scatter_nd_update(self.pretrain_features, index_top, mean_summed)
-    if (self._informative_features_with_thresholding):
-      pretrained_informative = tf.where(tf.greater(pretrained_informative, self.pretrain_features), pretrained_informative,  self.pretrain_features)
-
-    d = tf.tensordot(prob, pretrained_informative, axes=[[-1],[0]])
+    # index_top = tf.nn.top_k(prob, k=1)[1]
+    # index_top_k = tf.nn.top_k(prob, k=k)[1]
+    # mean_summed = tf.reduce_sum(tf.gather(self.pretrain_features, index_top_k), 2)
+    # pretrained_informative = tf.tensor_scatter_nd_update(self.pretrain_features, index_top, mean_summed)
+    # if (self._informative_features_with_thresholding):
+    #   pretrained_informative = tf.where(tf.greater(pretrained_informative, self.pretrain_features), pretrained_informative,  self.pretrain_features)
+    #
+    # d = tf.tensordot(prob, pretrained_informative, axes=[[-1],[0]])
+    d = tf.tensordot(prob, self.pretrain_features, axes=[[-1],[0]])
 
     return d
 
