@@ -3,45 +3,80 @@ class Config():
         self.is_config = True
 
 def mini_5_resnet_latents_split_8_0():
-    config = mini_5_resnet_baseline_reg()
+    config = mini_1_resnet_baseline_reg()
     config.despur = True
     config.l_splits = 8
-    config.corr_penalty = 0.001
+    config.corr_penalty = 0.01
     config.adapt_by_largest_loss = True
     config.regularize_mse = True
     config.regularize_kl = False
+
+    config.key = "Hessians-IB"
     return config
 
 def mini_5_resnet_latents_split_8_1():
-    config = mini_5_resnet_baseline_reg()
+    config = mini_1_resnet_baseline_reg()
     config.despur = True
     config.l_splits = 4
-    config.corr_penalty = 0.001
+    config.corr_penalty = 0.01
     config.adapt_by_largest_loss = True
     config.regularize_mse = True
     config.regularize_kl = False
+
+    config.key = "Hessians-IB"
     return config
 
 def mini_5_resnet_latents_split_8_2():
     # best
-    config = mini_5_resnet_baseline_reg()
+    config = mini_1_resnet_baseline_reg()
     config.despur = True
     config.l_splits = 2
-    config.corr_penalty = 0.001
+    config.corr_penalty = 0.01
     config.adapt_by_largest_loss = True
     config.regularize_mse = True
     config.regularize_kl = False
     config.zero_adjust = True
+
+    config.key = "Hessians-IB"
+    return config
+
+def mini_5_resnet_latents_split_8_2_rep():
+    # best
+    config = mini_5_resnet_baseline_reg()
+    config.despur = True
+    config.l_splits = 8
+    config.corr_penalty = 0.01
+    config.adapt_by_largest_loss = True
+    config.regularize_mse = True
+    config.regularize_kl = False
+    config.zero_adjust = True
+    config.key = "Hessians"
+
+    return config
+
+def mini_5_resnet_latents_split_8_2_rep2():
+    config = mini_5_resnet_baseline_reg()
+    config.despur = True
+    config.l_splits = 4
+    config.corr_penalty = 0.01
+    config.adapt_by_largest_loss = True
+    config.regularize_mse = True
+    config.regularize_kl = False
+    config.zero_adjust = True
+    config.key = "Hessians"
+
     return config
 
 def mini_5_resnet_latents_split_8_3():
-    config = mini_5_resnet_baseline_reg()
+    config = mini_1_resnet_baseline_reg()
     config.despur = True
     config.l_splits = 1
     config.corr_penalty = 0.001
     config.adapt_by_largest_loss = True
     config.regularize_mse = True
     config.regularize_kl = False
+
+    config.key = "Hessians-IB"
     return config
 
 def mini_5_resnet_latents_split_8_4():
@@ -114,7 +149,12 @@ def mini_5_resnet_baseline_reg():
     config.model = "ResNet10"
     config.deconfound = False
     config.meta_label = "despur"
+
     config.zero_adjust = False
+    config.informative_features = 0
+    config.informative_features_with_thresholding = False
+    config.latent_features = False
+    config.latents_threshold = None
     return config
 
 def mini_1_resnet_baseline_reg():
@@ -127,4 +167,10 @@ def mini_1_resnet_baseline_reg():
     config.model = "ResNet10"
     config.deconfound = False
     config.meta_label = "despur"
+
+    config.zero_adjust = False
+    config.informative_features = 0
+    config.informative_features_with_thresholding = False
+    config.latent_features = False
+    config.latents_threshold = None
     return config

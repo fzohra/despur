@@ -103,18 +103,14 @@ class FeatureProcessor():
 
   def get_k_d_features(self, logit, k):
     prob = tf.nn.softmax(logit, axis=-1)  # 5 * N * 64
-    # pretrained_k = tf.reduce_sum(tf.gather(self.pretrain_features, tf.nn.top_k(prob, k=3)[1]), 2)
+    index_top = tf.nn.top_k(prob, k=1)[1]
+    index_top_k = tf.nn.top_k(prob, k=k)[1]
+    mean_summed = tf.reduce_sum(tf.gather(self.pretrain_features, index_top_k), 2)
+    pretrained_informative = tf.tensor_scatter_nd_update(self.pretrain_features, index_top, mean_summed)
+    if (self._informative_features_with_thresholding):
+      pretrained_informative = tf.where(tf.greater(pretrained_informative, self.pretrain_features), pretrained_informative,  self.pretrain_features)
 
-    # index_top = tf.nn.top_k(prob, k=1)[1]
-    # index_top_k = tf.nn.top_k(prob, k=k)[1]
-    # mean_summed = tf.reduce_sum(tf.gather(self.pretrain_features, index_top_k), 2)
-    # pretrained_informative = tf.tensor_scatter_nd_update(self.pretrain_features, index_top, mean_summed)
-    # if (self._informative_features_with_thresholding):
-    #   pretrained_informative = tf.where(tf.greater(pretrained_informative, self.pretrain_features), pretrained_informative,  self.pretrain_features)
-    #
-    # d = tf.tensordot(prob, pretrained_informative, axes=[[-1],[0]])
-    d = tf.tensordot(prob, self.pretrain_features, axes=[[-1],[0]])
-
+    d = tf.tensordot(prob, pretrained_informative, axes=[[-1],[0]])
     return d
 
   def preprocess(self, data, center=None, method="none"):
@@ -299,7 +295,7 @@ class IFSL(snt.AbstractModule):
       losses = None
       for i in range(self.n_splits):
         input_data = self.build_input_data(fused_support[i], fused_query[i], data)
-        loss, additional_loss, accuracy, output = self.modules[i](input_data, is_meta_training)
+        loss, additional_loss, accuracy, output, hessians = self.modules[i](input_data, is_meta_training)
         output = tf.nn.softmax(output, axis=-1)
         if prediction is None:
           prediction = output
@@ -321,7 +317,7 @@ class IFSL(snt.AbstractModule):
     if debug:
       return losses, accuracy, debug_data
     else:
-      return losses, accuracy, dacc
+      return losses, accuracy, dacc, hessians
 
   def calculate_dacc(self, data, model_prediction, break_down=False):
     n_way = 5
@@ -365,11 +361,13 @@ class IFSL(snt.AbstractModule):
   def grads_and_vars(self, metatrain_loss):
     metatrain_gradients_merged = []
     metatrain_variables_merged = []
+    metatrain_hessians_merged = []
     for i in range(self.n_splits):
-      metatrain_gradients, metatrain_variables = self.modules[i].grads_and_vars(metatrain_loss)
+      metatrain_gradients, metatrain_variables, metatrain_hessians = self.modules[i].grads_and_vars(metatrain_loss)
       metatrain_gradients_merged += metatrain_gradients
       metatrain_variables_merged += metatrain_variables
-    return metatrain_gradients_merged, metatrain_variables_merged
+      metatrain_hessians_merged += metatrain_hessians
+    return metatrain_gradients_merged, metatrain_variables_merged, metatrain_hessians_merged
 
 class LEO(snt.AbstractModule):
   """Sonnet module implementing the inner loop of LEO."""
@@ -437,9 +435,8 @@ class LEO(snt.AbstractModule):
     self.save_problem_instance_stats(data.tr_input)
 
     latents, kl = self.forward_encoder(data)
-    tr_loss, adapted_classifier_weights, encoder_penalty = self.leo_inner_loop(
+    tr_loss, adapted_classifier_weights, encoder_penalty, hessians = self.leo_inner_loop(
         data, latents)
-    # print(encoder_penalty)
 
     val_loss, val_accuracy, val_output = self.finetuning_inner_loop(
         data, tr_loss, adapted_classifier_weights)
@@ -458,9 +455,9 @@ class LEO(snt.AbstractModule):
     additional_loss = self._kl_weight * kl + self._encoder_penalty_weight * encoder_penalty + regularization_penalty
     if self._deconfound:
       # return batch_val_loss + regularization_penalty, batch_val_accuracy, val_output
-      return batch_val_loss + regularization_penalty, additional_loss, batch_val_accuracy, val_output
+      return batch_val_loss + regularization_penalty, additional_loss, batch_val_accuracy, val_output, hessians
     else:
-      return batch_val_loss + regularization_penalty, batch_val_accuracy
+      return batch_val_loss + regularization_penalty, batch_val_accuracy, hessians
 
   @snt.reuse_variables
   def leo_inner_loop(self, data, latents):
@@ -508,9 +505,6 @@ class LEO(snt.AbstractModule):
         starting_latents_split = tf.nn.l2_normalize(starting_latents, axis=0)
         spurious = starting_latents_split
 
-    # if (self._adapt_by_largest_loss):
-    #   latents = tf.nn.l2_normalize((latents - spurious), axis=0)
-
     loss, _ = self.forward_decoder(data, latents)
     for _ in range(self._inner_unroll_length):
       if (self._despur):
@@ -530,8 +524,7 @@ class LEO(snt.AbstractModule):
       latents -= inner_lr * loss_grad[0]
       loss, classifier_weights = self.forward_decoder(data, latents)
 
-      # if (self._adapt_by_largest_loss):
-      #   latents = tf.nn.l2_normalize((latents-spurious), axis=0)
+    hessians = tf.hessians(loss, latents)[0]
 
     if self.is_meta_training:
       encoder_penalty = tf.losses.mean_squared_error(
@@ -539,8 +532,8 @@ class LEO(snt.AbstractModule):
       encoder_penalty = tf.cast(encoder_penalty, self._float_dtype)
     else:
       encoder_penalty = tf.constant(0., self._float_dtype)
-    # print(encoder_penalty)
-    return loss, classifier_weights, encoder_penalty
+
+    return loss, classifier_weights, encoder_penalty, hessians
 
   @snt.reuse_variables
   def finetuning_inner_loop(self, data, leo_loss, classifier_weights):
@@ -750,10 +743,17 @@ class LEO(snt.AbstractModule):
     metatrain_variables = self.trainable_variables
     metatrain_gradients = tf.gradients(metatrain_loss, metatrain_variables)
 
+    # metatrain_hessians = tf.hessians(metatrain_loss, metatrain_variables)
+
     nan_loss_or_grad = tf.logical_or(
         tf.is_nan(metatrain_loss),
         tf.reduce_any([tf.reduce_any(tf.is_nan(g))
                        for g in metatrain_gradients]))
+
+    # nan_loss_or_hessian = tf.logical_or(
+    #   tf.is_nan(metatrain_loss),
+    #   tf.reduce_any([tf.reduce_any(tf.is_nan(g))
+    #                  for g in metatrain_hessians]))
 
     regularization_penalty = (
         1e-4 / self._l2_penalty_weight * self._l2_regularization)
@@ -762,11 +762,21 @@ class LEO(snt.AbstractModule):
         for v, g in zip(tf.gradients(regularization_penalty,
                                      metatrain_variables), metatrain_variables)]
 
+    # zero_or_regularization_hessians = [
+    #   g if g is not None else tf.zeros_like(v)
+    #   for v, g in zip(tf.hessians(regularization_penalty,
+    #                                metatrain_variables), metatrain_variables)]
+
     metatrain_gradients = tf.cond(nan_loss_or_grad,
                                   lambda: zero_or_regularization_gradients,
                                   lambda: metatrain_gradients, strict=True)
 
-    return metatrain_gradients, metatrain_variables
+    # metatrain_hessians = tf.cond(nan_loss_or_hessian,
+    #                               lambda: zero_or_regularization_hessians,
+    #                               lambda: metatrain_hessians, strict=True)
+
+    metatrain_hessians = tf.constant(0.0, dtype=tf.float32)
+    return metatrain_gradients, metatrain_variables, metatrain_hessians
 
   @property
   def _l2_regularization(self):

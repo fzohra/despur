@@ -67,7 +67,7 @@ def _construct_validation_summaries(metavalid_loss, metavalid_accuracy):
 
 
 def _construct_training_summaries(metatrain_loss, metatrain_accuracy,
-                                  model_grads, model_vars):
+                                  model_grads, model_vars, model_hessians):
   tf.summary.scalar("metatrain_loss", metatrain_loss)
   tf.summary.scalar("metatrain_valid_accuracy", metatrain_accuracy)
   for g, v in zip(model_grads, model_vars):
@@ -76,6 +76,7 @@ def _construct_training_summaries(metatrain_loss, metatrain_accuracy,
     histogram_name = "gradient/{}".format(histogram_name)
     tf.summary.histogram(histogram_name, g)
 
+  tf.summary.histogram("hessians/inner", model_hessians)
 
 def _construct_examples_batch(batch_size, split, num_classes,
                               num_tr_examples_per_class,
@@ -93,15 +94,15 @@ def _construct_loss_and_accuracy(inner_model, inputs, is_meta_training):
   """Returns batched loss and accuracy of the model ran on the inputs."""
   call_fn = functools.partial(
       inner_model.__call__, is_meta_training=is_meta_training)
-  per_instance_loss, per_instance_accuracy, per_instance_dacc = tf.map_fn(
+  per_instance_loss, per_instance_accuracy, per_instance_dacc, hessians = tf.map_fn(
       call_fn,
       inputs,
-      dtype=(tf.float32, tf.float32, tf.float32),
+      dtype=(tf.float32, tf.float32, tf.float32, tf.float32),
       back_prop=is_meta_training)
   loss = tf.reduce_mean(per_instance_loss)
   accuracy = tf.reduce_mean(per_instance_accuracy)
   dacc = tf.reduce_mean(per_instance_dacc)
-  return loss, accuracy, dacc
+  return loss, accuracy, dacc, hessians
 
 
 def construct_debug_graph(outer_model_config):
@@ -147,10 +148,10 @@ def construct_graph(outer_model_config):
       outer_model_config["metatrain_batch_size"], "train", num_classes,
       num_tr_examples_per_class,
       outer_model_config["num_val_examples_per_class"])
-  metatrain_loss, metatrain_accuracy, metatrain_dacc = _construct_loss_and_accuracy(
+  metatrain_loss, metatrain_accuracy, metatrain_dacc, metatrain_hessians = _construct_loss_and_accuracy(
       leo, metatrain_batch, True)
 
-  metatrain_gradients, metatrain_variables = leo.grads_and_vars(metatrain_loss)
+  metatrain_gradients, metatrain_variables, _ = leo.grads_and_vars(metatrain_loss)
 
   # Avoids NaNs in summaries.
   metatrain_loss = tf.cond(tf.is_nan(metatrain_loss),
@@ -162,7 +163,7 @@ def construct_graph(outer_model_config):
       outer_model_config["gradient_norm_threshold"])
 
   _construct_training_summaries(metatrain_loss, metatrain_accuracy,
-                                metatrain_gradients, metatrain_variables)
+                                metatrain_gradients, metatrain_variables, metatrain_hessians)
   optimizer = tf.train.AdamOptimizer(
       learning_rate=outer_model_config["outer_lr"])
   global_step = tf.train.get_or_create_global_step()
@@ -178,7 +179,7 @@ def construct_graph(outer_model_config):
       outer_model_config["metavalid_batch_size"], split, num_classes,
       num_tr_examples_per_class,
       total_examples_per_class - num_tr_examples_per_class)
-  metavalid_loss, metavalid_accuracy, metavalid_dacc = _construct_loss_and_accuracy(
+  metavalid_loss, metavalid_accuracy, metavalid_dacc, _ = _construct_loss_and_accuracy(
       leo, metavalid_batch, False)
 
   if not FLAGS.cross:
@@ -192,7 +193,7 @@ def construct_graph(outer_model_config):
         num_tr_examples_per_class,
         15, use_cross=FLAGS.cross)
       
-  _, metatest_accuracy, metatest_dacc = _construct_loss_and_accuracy(
+  _, metatest_accuracy, metatest_dacc, _ = _construct_loss_and_accuracy(
       leo, metatest_batch, False)
   _construct_validation_summaries(metavalid_loss, metavalid_accuracy)
   

@@ -203,7 +203,8 @@ def load_ifsl_config(config):
     # checkpoint path
     FLAGS.checkpoint_path = "/Users/zohra/PycharmProjects/leo/logs/" + config.dataset + "_" + config.model + "_" + \
                             str(config.shot) + "_" + config.meta_label \
-                            + "_" + str(config.l_splits) + "_" + str(config.corr_penalty) + "-" + config.key
+                            + "-" + config.key
+                            # + "_" + str(config.l_splits) + "_" + str(config.corr_penalty) + "-" + config.key
     # data path
     if config.model == "ResNet10":
         model_abbr = "resnet"

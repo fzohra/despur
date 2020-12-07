@@ -14,7 +14,8 @@ def mini_5_resnet_latents_causal_1():
     config.preprocess_before_split = "hl2n"
     config.preprocess_after_split = "l2n"
     config.informative_features = 3
-    config.key = "B"
+    config.key = "BFinal"
+    #best acc: 0.7459208726882934 best dacc: 0.7111537158489227
     return config
 
 def mini_5_resnet_latents_causal_2():
@@ -22,7 +23,8 @@ def mini_5_resnet_latents_causal_2():
     config.preprocess_before_split = "hl2n"
     config.preprocess_after_split = "l2n"
     config.informative_features = 2
-    config.key = "C"
+    config.key = "CFinal"
+
     return config
 
 def mini_5_resnet_latents_causal_3():
@@ -138,6 +140,7 @@ def mini_5_resnet_ifsl_causal():
     config.adapt_by_largest_loss = False
     config.regularize_mse = False
     config.regularize_kl = False
+
     config.informative_features = 0
     config.informative_features_with_thresholding = False
     config.latent_features = False
